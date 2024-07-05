@@ -5,6 +5,8 @@ import { generateOTP } from '../utils/generateOTP';
 import { generateToken } from '../utils/generateToken';
 import logger from '../logger';
 
+//! signup request controller :
+
 export const signupRequest = async (
   req: Request,
   res: Response
@@ -50,6 +52,8 @@ export const signupRequest = async (
   }
 };
 
+//!verify-otp controller:
+
 export const verifyOTP = async (req: Request, res: Response): Promise<void> => {
   const { email, otp } = req.body;
 
@@ -81,6 +85,8 @@ export const verifyOTP = async (req: Request, res: Response): Promise<void> => {
       .json({ message: 'Failed to verify OTP. Please try again.' });
   }
 };
+
+//! sign In controller:
 
 export const signin = async (req: Request, res: Response): Promise<void> => {
   const { email, password } = req.body;
@@ -115,5 +121,53 @@ export const signin = async (req: Request, res: Response): Promise<void> => {
   } catch (error) {
     logger.error('Error in signin:', error);
     res.status(500).json({ message: 'Failed to signin. Please try again.' });
+  }
+};
+
+//! reset password controller:
+
+export const resetPassword = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { email, oldPassword, newPassword } = req.body;
+
+  if (!email || !oldPassword || !newPassword) {
+    res
+      .status(400)
+      .json({ message: 'Email, old password, and new password are required.' });
+    return;
+  }
+
+  try {
+    // Find user by email
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      res.status(404).json({ message: 'User not found.' });
+      return;
+    }
+
+    // Verify old password
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!isMatch) {
+      res.status(400).json({ message: 'Incorrect old password.' });
+      return;
+    }
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update user's password in the db
+    await User.findByIdAndUpdate(user._id, { password: hashedPassword });
+
+    logger.info(`Password reset successful for user ID: ${user._id}`);
+
+    res.status(200).json({ message: 'Password reset successful.' });
+  } catch (error) {
+    logger.error('Error in password reset:', error);
+    res
+      .status(500)
+      .json({ message: 'Failed to reset password. Please try again.' });
   }
 };
